@@ -1,6 +1,7 @@
 require('dotenv').config()
 const express = require('express');
 const app = express()
+const jwt = require('jsonwebtoken');
 const cors = require('cors');
 const port = process.env.PORT || 5000
 const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
@@ -29,23 +30,114 @@ const dbConnect = async () => {
 dbConnect();
 
 
-// DB COLLECTION
+//---------- DB COLLECTION ----------//
 const userCollection = client.db('EduPortal').collection('users')
 const classCollection = client.db('EduPortal').collection('classes')
 const reviewCollection = client.db('EduPortal').collection('reviews')
 
-// User APIs
-app.get('/users', async (req, res) => {
-    const result = await userCollection.find().toArray()
+
+
+//---------- Verify Token ----------//
+
+const verifyToken = async (req, res, next) => {
+    if (!req.headers.authorization) { // Add the negation here
+        return res.status(401).send({ message: 'Unauthorized Access' })
+    }
+    const token = req.headers.authorization.split(' ')[1]
+    // console.log(token);
+    if (!token) {
+        return res.status(401).send({ message: 'Unauthorized Access' })
+    }
+    jwt.verify(
+        token, process.env.JWT_TOKEN, (err, decoded) => {
+            if (err) {
+                return res.status(401).send({ message: 'Unauthorized Access' })
+            }
+            req.decoded = decoded
+
+            next()
+        }
+    )
+}
+
+//---------- Verify Admin Middleware ----------//
+
+const verifyAdmin = async (req, res, next) => {
+    const email = req.decoded.email
+    const query = { email: email }
+    const user = await userCollection.findOne(query)
+    const isAdmin = user?.role === 'admin'
+    if (!isAdmin) {
+        return res.status(403).send({ message: 'Forbidden Access' })
+    }
+    next()
+}
+
+
+//---------- Verify Teacher Middleware ----------//
+const verifyTeacher = async (req, res, next) => {
+    const email = req.decoded.email
+    console.log(email);
+    const query = { email: email }
+    const user = await userCollection.findOne(query)
+    const isTeacher = user?.role === 'teacher'
+    if (!isTeacher) {
+        return res.status(403).send({ message: 'Forbidden Access' })
+    }
+    next()
+}
+
+
+
+//---------- JWT Related API ----------//
+app.post('/jwt', async (req, res) => {
+    const user = req.body
+    const token = jwt.sign(user, process.env.JWT_TOKEN, { expiresIn: '1h' });
+    res.send({ token })
 })
+
+//---------- User APIs ----------//
+app.get('/users', verifyToken, verifyAdmin, async (req, res) => {
+    const result = await userCollection.find().toArray()
+    res.send(result)
+})
+
+app.get('/users/teacher/:email', verifyToken, async (req, res) => {
+    const email = req.params.email;
+    if (email !== req.decoded.email) {
+        return res.status(403).send({ message: 'Forbidden Access' });
+    }
+    const query = { email: email };
+    const user = await userCollection.findOne(query);
+    const isTeacher= user?.role === 'teacher';
+    res.send({ admin: isTeacher });
+});
+
+
+app.get('/users/admin/:email', verifyToken, async (req, res) => {
+    const email = req.params.email;
+    if (email !== req.decoded.email) {
+        return res.status(403).send({ message: 'Forbidden Access' });
+    }
+    const query = { email: email };
+    const user = await userCollection.findOne(query);
+    const isAdmin = user?.role === 'admin';
+    res.send({ admin: isAdmin });
+});
 
 app.post('/users', async (req, res) => {
     const user = req.body
-
+    const query = { email: user.email }
+    const existingUser = await userCollection.findOne(query)
+    if (existingUser) {
+        return res.send({ message: 'user already exists', insertId: null })
+    }
     const result = await userCollection.insertOne(user)
+    res.send({ admin })
 })
 
-// Class APIs
+
+//---------- Class APIs ----------//
 app.get('/classes', async (req, res) => {
     const result = await classCollection.find().toArray()
     res.send(result)
@@ -58,7 +150,7 @@ app.get('/classes/:id', async (req, res) => {
     res.send(result)
 })
 
-// Reviews APIs
+//---------- Reviews APIs ----------//
 app.get('/reviews', async (req, res) => {
     const result = await reviewCollection.find().toArray()
     res.send(result)
@@ -68,7 +160,7 @@ app.get('/reviews', async (req, res) => {
 
 
 
-// ---------------- //
+// ------------------------------------ //
 
 app.get('/', (req, res) => {
     res.send('EduPortal')
