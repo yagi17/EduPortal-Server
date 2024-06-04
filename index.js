@@ -32,7 +32,9 @@ dbConnect();
 
 //---------- DB COLLECTION ----------//
 const userCollection = client.db('EduPortal').collection('users')
+const requestCollection = client.db('EduPortal').collection('request')
 const classCollection = client.db('EduPortal').collection('classes')
+const teacherCollection = client.db('EduPortal').collection('teachers')
 const reviewCollection = client.db('EduPortal').collection('reviews')
 
 
@@ -102,18 +104,6 @@ app.get('/users', verifyToken, verifyAdmin, async (req, res) => {
     res.send(result)
 })
 
-app.get('/users/teacher/:email', verifyToken, async (req, res) => {
-    const email = req.params.email;
-    if (email !== req.decoded.email) {
-        return res.status(403).send({ message: 'Forbidden Access' });
-    }
-    const query = { email: email };
-    const user = await userCollection.findOne(query);
-    const isTeacher= user?.role === 'teacher';
-    res.send({ admin: isTeacher });
-});
-
-
 app.get('/users/admin/:email', verifyToken, async (req, res) => {
     const email = req.params.email;
     if (email !== req.decoded.email) {
@@ -125,6 +115,7 @@ app.get('/users/admin/:email', verifyToken, async (req, res) => {
     res.send({ admin: isAdmin });
 });
 
+
 app.post('/users', async (req, res) => {
     const user = req.body
     const query = { email: user.email }
@@ -133,9 +124,20 @@ app.post('/users', async (req, res) => {
         return res.send({ message: 'user already exists', insertId: null })
     }
     const result = await userCollection.insertOne(user)
-    res.send({ admin })
+    res.send(result)
 })
 
+app.patch('/users/:email', async (req, res) => {
+    const email = req.params.email
+    const filter = {email:email}
+    const updatedDoc = {
+        $set: {
+            role: 'teacher'
+        }
+    }
+    const result = await userCollection.updateOne(filter, updatedDoc)
+    res.send(result)
+})
 
 //---------- Class APIs ----------//
 app.get('/classes', async (req, res) => {
@@ -156,7 +158,56 @@ app.get('/reviews', async (req, res) => {
     res.send(result)
 })
 
+//---------- Teacher API ----------//
 
+
+app.get('/users/teacher/:email', verifyToken, async (req, res) => {
+    const email = req.params.email;
+    if (email !== req.decoded.email) {
+        return res.status(403).send({ message: 'Forbidden Access' });
+    }
+    const query = { email: email };
+    const user = await userCollection.findOne(query);
+    const isTeacher = user?.role === 'teacher';
+    res.send({ teacher: isTeacher });
+});
+
+// app.post('/teachers', async (req, res) => {
+//     const teachers = req.body
+//     const result = await teacherCollection.insertOne(teachers)
+//     res.send(result)
+// })
+
+// app.get('/teachers', async (req, res) => {
+//     const result = await teacherCollection.find().toArray()
+//     res.send(result)
+// })
+
+// app.get('/teachers/:id', async (req, res) => {
+//     const id = req.params.id
+//     const query = { _id: new ObjectId(id) }
+//     const result = await teacherCollection.find(query)
+//     res.send(result)
+// })
+
+
+app.post('/teacher-req', verifyToken, async (req, res) => {
+    const requests = req.body
+    const result = await requestCollection.insertOne(requests)
+    res.send(result)
+})
+
+app.get('/teacher-req', async (req, res) => {
+    const result = await requestCollection.find().toArray()
+    res.send(result)
+})
+
+app.delete('/teacher-req/:id', async (req, res)=>{
+    const id = req.params.id
+    const query = {_id: new ObjectId(id)}
+    const result = await requestCollection.deleteOne(query)
+    res.send(result)
+})
 
 
 
