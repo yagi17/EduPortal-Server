@@ -34,8 +34,9 @@ dbConnect();
 const userCollection = client.db('EduPortal').collection('users')
 const requestCollection = client.db('EduPortal').collection('request')
 const classCollection = client.db('EduPortal').collection('classes')
-const teacherCollection = client.db('EduPortal').collection('teachers')
+// const teacherCollection = client.db('EduPortal').collection('teachers')
 const reviewCollection = client.db('EduPortal').collection('reviews')
+const classReqCollection = client.db('EduPortal').collection('class-req')
 
 
 
@@ -56,7 +57,7 @@ const verifyToken = async (req, res, next) => {
                 return res.status(401).send({ message: 'Unauthorized Access' })
             }
             req.decoded = decoded
-
+            // console.log(req.decoded.email);
             next()
         }
     )
@@ -127,9 +128,9 @@ app.post('/users', async (req, res) => {
     res.send(result)
 })
 
-app.patch('/users/:email', async (req, res) => {
+app.patch('/users/:email', verifyToken, verifyAdmin, async (req, res) => {
     const email = req.params.email
-    const filter = {email:email}
+    const filter = { email: email }
     const updatedDoc = {
         $set: {
             role: 'teacher'
@@ -152,6 +153,24 @@ app.get('/classes/:id', async (req, res) => {
     res.send(result)
 })
 
+app.get('/classes/user/:email', verifyToken, async (req, res) => {
+    const query = {
+        teacher_email: req.params.email
+    }
+    if (req.params.email !== req.decoded.email) {
+        return res.status(403).send({ massage: "Forbidden Access" })
+    }
+    const result = await classCollection.find(query).toArray()
+    res.send(result)
+})
+
+app.get('/classes/status/:status', async (req, res) => {
+    const status = req.params.status;
+    const query = { status: status }
+    const result = await classCollection.find(query).toArray()
+    res.send(result);
+});
+
 //---------- Reviews APIs ----------//
 app.get('/reviews', async (req, res) => {
     const result = await reviewCollection.find().toArray()
@@ -159,7 +178,6 @@ app.get('/reviews', async (req, res) => {
 })
 
 //---------- Teacher API ----------//
-
 
 app.get('/users/teacher/:email', verifyToken, async (req, res) => {
     const email = req.params.email;
@@ -172,24 +190,6 @@ app.get('/users/teacher/:email', verifyToken, async (req, res) => {
     res.send({ teacher: isTeacher });
 });
 
-// app.post('/teachers', async (req, res) => {
-//     const teachers = req.body
-//     const result = await teacherCollection.insertOne(teachers)
-//     res.send(result)
-// })
-
-// app.get('/teachers', async (req, res) => {
-//     const result = await teacherCollection.find().toArray()
-//     res.send(result)
-// })
-
-// app.get('/teachers/:id', async (req, res) => {
-//     const id = req.params.id
-//     const query = { _id: new ObjectId(id) }
-//     const result = await teacherCollection.find(query)
-//     res.send(result)
-// })
-
 
 app.post('/teacher-req', verifyToken, async (req, res) => {
     const requests = req.body
@@ -197,19 +197,46 @@ app.post('/teacher-req', verifyToken, async (req, res) => {
     res.send(result)
 })
 
-app.get('/teacher-req', async (req, res) => {
+app.get('/teacher-req', verifyToken, verifyAdmin, async (req, res) => {
     const result = await requestCollection.find().toArray()
     res.send(result)
 })
 
-app.delete('/teacher-req/:id', async (req, res)=>{
+app.delete('/teacher-req/:id', verifyToken, verifyAdmin, async (req, res) => {
     const id = req.params.id
-    const query = {_id: new ObjectId(id)}
+    const query = { _id: new ObjectId(id) }
     const result = await requestCollection.deleteOne(query)
     res.send(result)
 })
 
+//---------- Requested Classes API ----------//
 
+app.post('/class-req', verifyToken, verifyTeacher, async (req, res) => {
+    const requests = req.body
+    const result = await classReqCollection.insertOne(requests)
+    res.send(result)
+})
+
+app.get('/class-req', async (req, res) => {
+    const query = req.body
+    const result = await classCollection.find(query).toArray()
+    res.send(result)
+})
+
+app.get('/class-req/:email', verifyToken, async (req, res) => {
+    const query = {
+        teacher_email: req.params.email
+    }
+
+    console.log('params', req.params.email);
+    console.log('decoded', req.decoded.email);
+
+    if (req.params.email !== req.decoded.email) {
+        return res.status(403).send({ massage: "Forbidden Access" })
+    }
+    const result = await classReqCollection.find(query).toArray()
+    res.send(result)
+})
 
 // ------------------------------------ //
 
