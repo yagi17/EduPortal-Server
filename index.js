@@ -105,6 +105,8 @@ app.get('/users', verifyToken, verifyAdmin, async (req, res) => {
     res.send(result)
 })
 
+// app.patch('/users/:id')
+
 app.get('/users/admin/:email', verifyToken, async (req, res) => {
     const email = req.params.email;
     if (email !== req.decoded.email) {
@@ -151,6 +153,19 @@ app.get('/classes/:id', async (req, res) => {
     const query = { _id: new ObjectId(id) }
     const result = await classCollection.findOne(query)
     res.send(result)
+})
+
+app.patch('/classes/:id', async(req, res)=>{
+    const update = req.body
+    const id = req.params.id;
+    const query = { _id: new ObjectId(id) };
+    const updateDoc = {
+        $set: {
+          status: 'approved' 
+        },
+      };
+      const result = await classCollection.updateOne(query, updateDoc)
+      res.send(result)
 })
 
 app.get('/classes/user/:email', verifyToken, async (req, res) => {
