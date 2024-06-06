@@ -80,7 +80,7 @@ const verifyAdmin = async (req, res, next) => {
 //---------- Verify Teacher Middleware ----------//
 const verifyTeacher = async (req, res, next) => {
     const email = req.decoded.email
-    console.log(email);
+    // console.log(email);
     const query = { email: email }
     const user = await userCollection.findOne(query)
     const isTeacher = user?.role === 'teacher'
@@ -99,7 +99,12 @@ app.post('/jwt', async (req, res) => {
     res.send({ token })
 })
 
-//---------- User APIs ----------//
+//============================================================||
+//                                                            ||
+//                     User Related API                       ||
+//                                                            ||
+//============================================================||
+
 app.get('/users', verifyToken, verifyAdmin, async (req, res) => {
     const result = await userCollection.find().toArray()
     res.send(result)
@@ -118,7 +123,7 @@ app.get('/users/admin/:email', verifyToken, async (req, res) => {
     res.send({ admin: isAdmin });
 });
 
-
+//---------- Get Users ----------//
 app.post('/users', async (req, res) => {
     const user = req.body
     const query = { email: user.email }
@@ -130,6 +135,7 @@ app.post('/users', async (req, res) => {
     res.send(result)
 })
 
+//---------- make teacher by email ----------//
 app.patch('/users/:email', verifyToken, verifyAdmin, async (req, res) => {
     const email = req.params.email
     const filter = { email: email }
@@ -142,12 +148,32 @@ app.patch('/users/:email', verifyToken, verifyAdmin, async (req, res) => {
     res.send(result)
 })
 
+//---------- make admin by id ----------//
+app.patch('/users/admin/:id', verifyToken, verifyAdmin, async (req, res) => {
+    const id = req.params.id
+    const filter = { _id: new ObjectId(id) }
+    const updatedDoc = {
+        $set: {
+            role: 'admin'
+        }
+    }
+    const result = await userCollection.updateOne(filter, updatedDoc)
+    res.send(result)
+})
+
+//============================================================||
+//                                                            ||
+//                     Class Related API                      ||
+//                                                            ||
+//============================================================||
+
 //---------- Class APIs ----------//
 app.get('/classes', async (req, res) => {
     const result = await classCollection.find().toArray()
     res.send(result)
 })
 
+//---------- Find Class By id ----------//
 app.get('/classes/:id', async (req, res) => {
     const id = req.params.id
     const query = { _id: new ObjectId(id) }
@@ -155,20 +181,30 @@ app.get('/classes/:id', async (req, res) => {
     res.send(result)
 })
 
-app.patch('/classes/:id', async(req, res)=>{
+//---------- Approve class ----------//
+app.patch('/classes/:id', verifyToken, verifyAdmin, async (req, res) => {
     const update = req.body
     const id = req.params.id;
     const query = { _id: new ObjectId(id) };
     const updateDoc = {
         $set: {
-          status: 'approved' 
+            status: 'approved'
         },
-      };
-      const result = await classCollection.updateOne(query, updateDoc)
-      res.send(result)
+    };
+    const result = await classCollection.updateOne(query, updateDoc)
+    res.send(result)
 })
 
-app.get('/classes/user/:email', verifyToken, async (req, res) => {
+//---------- Delete class ----------//
+app.delete('/classes/:id', async (req, res) => {
+    const id = req.params.id
+    const query = { _id: new ObjectId(id) }
+    const result = await classCollection.deleteOne(query)
+    res.send(result)
+})
+
+//---------- Get class by teachers mail ----------//
+app.get('/classes/teacher/:email', verifyToken, verifyTeacher, async (req, res) => {
     const query = {
         teacher_email: req.params.email
     }
@@ -179,6 +215,7 @@ app.get('/classes/user/:email', verifyToken, async (req, res) => {
     res.send(result)
 })
 
+//---------- Get classes By Status ----------//
 app.get('/classes/status/:status', async (req, res) => {
     const status = req.params.status;
     const query = { status: status }
@@ -192,8 +229,13 @@ app.get('/reviews', async (req, res) => {
     res.send(result)
 })
 
-//---------- Teacher API ----------//
+//============================================================||
+//                                                            ||
+//                     Teacher Related API                    ||
+//                                                            ||
+//============================================================||
 
+//---------- Find Classes Added by user ----------//
 app.get('/users/teacher/:email', verifyToken, async (req, res) => {
     const email = req.params.email;
     if (email !== req.decoded.email) {
@@ -205,51 +247,78 @@ app.get('/users/teacher/:email', verifyToken, async (req, res) => {
     res.send({ teacher: isTeacher });
 });
 
+//---------- Get class which is added by user ----------//
+app.get('/classes/teacher/:email/:id', verifyToken, verifyTeacher, async (req, res) => {
+    const query = {
+        teacher_email: req.params.email
+    }
+    if (query !== req.decoded.email) {
+        return res.status(403).send({ message: "Forbidden Access" })
+    }
+    const id = req.params.id
+    const idQuery = { _id: new ObjectId(id) }
+    const result = await classCollection.deleteOne(idQuery)
+    res.send(result)
+})
 
+//---------- Update class which is added by user ----------//
+app.patch('/classes/teacher/:email/:id', verifyToken, verifyTeacher, async (req, res) => {
+    const teacherEmail = req.params.email;
+
+    if (teacherEmail !== req.decoded.email) {
+        console.log('User log out');
+        return res.status(403).send({ message: 'Forbidden Access' });
+    }
+
+    const item = req.body;
+    const id = req.params.id;
+    const idQuery = { _id: new ObjectId(id) };
+
+    const updatedDoc = {};
+    if (item.title) updatedDoc.title = item.title;
+    if (item.banner_image) updatedDoc.banner_image = item.banner_image;
+    if (item.price) updatedDoc.price = item.price;
+    if (item.category) updatedDoc.category = item.category;
+    if (item.short_description) updatedDoc.short_description = item.short_description;
+
+    const newValue = { $set: updatedDoc }
+
+    const result = await classCollection.updateOne(idQuery, newValue);
+    res.send(result);
+});
+
+//---------- Delete class which is added user ----------//
+app.delete('/classes/teacher/:email&:id', verifyToken, verifyTeacher, async (req, res) => {
+    const query = {
+        teacher_email: req.params.email
+    }
+    if (req.params.email !== req.decoded.email) {
+        return res.status(403).send({ massage: "Forbidden Access" })
+    }
+    const id = req.params.id
+    const idQuery = { _id: new ObjectId(id) }
+    const result = await classCollection.deleteOne(idQuery)
+    res.send(result)
+})
+
+//---------- Post Teacher Request ----------//
 app.post('/teacher-req', verifyToken, async (req, res) => {
     const requests = req.body
     const result = await requestCollection.insertOne(requests)
     res.send(result)
 })
 
+//---------- Get Teacher Request ----------//
 app.get('/teacher-req', verifyToken, verifyAdmin, async (req, res) => {
     const result = await requestCollection.find().toArray()
     res.send(result)
 })
 
+//---------- Delete Teacher Request ----------//
 app.delete('/teacher-req/:id', verifyToken, verifyAdmin, async (req, res) => {
     const id = req.params.id
     const query = { _id: new ObjectId(id) }
     const result = await requestCollection.deleteOne(query)
-    res.send(result)
-})
-
-//---------- Requested Classes API ----------//
-
-app.post('/class-req', verifyToken, verifyTeacher, async (req, res) => {
-    const requests = req.body
-    const result = await classReqCollection.insertOne(requests)
-    res.send(result)
-})
-
-app.get('/class-req', async (req, res) => {
-    const query = req.body
-    const result = await classCollection.find(query).toArray()
-    res.send(result)
-})
-
-app.get('/class-req/:email', verifyToken, async (req, res) => {
-    const query = {
-        teacher_email: req.params.email
-    }
-
-    console.log('params', req.params.email);
-    console.log('decoded', req.decoded.email);
-
-    if (req.params.email !== req.decoded.email) {
-        return res.status(403).send({ massage: "Forbidden Access" })
-    }
-    const result = await classReqCollection.find(query).toArray()
     res.send(result)
 })
 
