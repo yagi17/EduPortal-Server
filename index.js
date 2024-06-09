@@ -20,6 +20,8 @@ const client = new MongoClient(uri, {
     }
 });
 
+
+
 const dbConnect = async () => {
     try {
         console.log("You successfully connected to MongoDB!");
@@ -39,7 +41,9 @@ dbConnect();
 const userCollection = client.db('EduPortal').collection('users')
 const requestCollection = client.db('EduPortal').collection('request')
 const classCollection = client.db('EduPortal').collection('classes')
+const enrollCollection = client.db('EduPortal').collection('enroll')
 const reviewCollection = client.db('EduPortal').collection('reviews')
+const paymentCollection = client.db('EduPortal').collection('payments')
 
 
 //============================================================||
@@ -298,6 +302,13 @@ app.delete('/classes/teacher/:email&:id', verifyToken, verifyTeacher, async (req
 
 //---------- Class APIs ----------//
 
+app.post('/classes', async (req, res) => {
+    const requests = req.body
+    const result = await classCollection.insertOne(requests)
+    res.send(result)
+})
+
+
 app.get('/classes', async (req, res) => {
     const result = await classCollection.find().toArray()
     res.send(result)
@@ -332,7 +343,7 @@ app.patch('/classes/:id', verifyToken, verifyAdmin, async (req, res) => {
 
 //---------- Delete class ----------//
 
-app.delete('/classes/:id',verifyToken, verifyTeacher,  async (req, res) => {
+app.delete('/classes/:id', verifyToken, verifyTeacher, async (req, res) => {
     const id = req.params.id
     const query = { _id: new ObjectId(id) }
     const result = await classCollection.deleteOne(query)
@@ -378,9 +389,67 @@ app.get('/reviews', async (req, res) => {
 })
 
 
+//============================================================||
+//                                                            ||
+//                     Payment Related API                    ||
+//                                                            ||
+//============================================================||
+
+//---------- Payment Collection ----------//
+app.post('/enrollments', async (req, res) => {
+    const query = req.body;
+    const result = await enrollCollection.insertOne(query)
+    res.send(result)
+})
+
+app.get('/enrollments', async(req, res)=>{
+    const result = await enrollCollection.find().toArray()
+    res.send(result)
+})
 
 
+const stripe = require("stripe")(process.env.STRIPE_KEY);
 
+
+//---------- Payment intent ----------//
+
+app.post('/create-payment-intent', async (req, res) => {
+    const { price } = req.body
+    console.log(typeof(price));
+    if (price === undefined) {
+        return res.status(400).json({ error: 'Price value is missing' });
+      }
+    const amount = Math.round(price * 100);
+    const minAmount = 0.1;
+    if (amount < minAmount * 100) {
+        return res.status(400).json({ error: `The minimum charge amount is $${minAmount}` });
+    }
+    else {
+        const paymentIntent = await stripe.paymentIntents.create({
+            amount: amount,
+            currency: "usd",
+            payment_method_options: {
+                card: {
+                    // Additional options for card payments, if needed
+                }
+            }
+        })
+        res.send({
+            clientSecret: paymentIntent.client_secret
+        })
+    }
+})
+
+app.post('/payments', async (req,res)=>{
+    const payment = req.body
+    const result = await paymentCollection.insertOne(payment)
+    res.send(result)
+})
+
+app.get('/payments', async(req,res)=>{
+    const result = await paymentCollection.find().toArray()
+    res.send(result)
+})
 
 //============================================================||
 //                                                            ||
