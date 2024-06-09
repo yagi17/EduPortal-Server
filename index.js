@@ -43,7 +43,7 @@ const requestCollection = client.db('EduPortal').collection('request')
 const classCollection = client.db('EduPortal').collection('classes')
 const enrollCollection = client.db('EduPortal').collection('enroll')
 const reviewCollection = client.db('EduPortal').collection('reviews')
-const paymentCollection = client.db('EduPortal').collection('payments')
+const assignmentCollection = client.db('EduPortal').collection('assignments')
 
 
 //============================================================||
@@ -388,7 +388,6 @@ app.get('/reviews', async (req, res) => {
     res.send(result)
 })
 
-
 //============================================================||
 //                                                            ||
 //                     Payment Related API                    ||
@@ -396,14 +395,21 @@ app.get('/reviews', async (req, res) => {
 //============================================================||
 
 //---------- Payment Collection ----------//
-app.post('/enrollments', async (req, res) => {
+app.post('/enrollments', verifyToken, async (req, res) => {
     const query = req.body;
     const result = await enrollCollection.insertOne(query)
     res.send(result)
 })
 
-app.get('/enrollments', async(req, res)=>{
+app.get('/enrollments', async (req, res) => {
     const result = await enrollCollection.find().toArray()
+    res.send(result)
+})
+
+app.get('/enrollments/:email', async (req, res) => {
+    // const email = req.params.email
+    const query = { email: req.params.email }
+    const result = await enrollCollection.find(query).toArray()
     res.send(result)
 })
 
@@ -415,10 +421,10 @@ const stripe = require("stripe")(process.env.STRIPE_KEY);
 
 app.post('/create-payment-intent', async (req, res) => {
     const { price } = req.body
-    console.log(typeof(price));
+    console.log(typeof (price));
     if (price === undefined) {
         return res.status(400).json({ error: 'Price value is missing' });
-      }
+    }
     const amount = Math.round(price * 100);
     const minAmount = 0.1;
     if (amount < minAmount * 100) {
@@ -440,16 +446,71 @@ app.post('/create-payment-intent', async (req, res) => {
     }
 })
 
-app.post('/payments', async (req,res)=>{
-    const payment = req.body
-    const result = await paymentCollection.insertOne(payment)
+app.get('/enrolled/classes/:id', async (req, res) => {
+    const id = req.params.id
+    const query = { _id: new ObjectId(id) }
+    const result = await classCollection.findOne(query)
     res.send(result)
 })
 
-app.get('/payments', async(req,res)=>{
-    const result = await paymentCollection.find().toArray()
+// Enrollment
+app.patch('/enrolled/classes/:id', async (req, res) => {
+    try {
+        const id = req.params.id;
+        const { enrolledStudent } = req.body; // Retrieve updated count from the request body
+        const query = { _id: new ObjectId(id) };
+        const updatedDoc = {
+            $set: {
+                enrolledStudent: enrolledStudent
+            }
+        };
+        const result = await classCollection.updateOne(query, updatedDoc);
+        res.send(result);
+    } catch (error) {
+        console.error(error);
+        res.status(500).send({ error: 'Failed to update enrollment' });
+    }
+});
+
+//============================================================||
+//                                                            ||
+//                   Assignment Collection                    ||
+//                                                            ||
+//============================================================||
+
+
+app.get('/assignments', async (req, res) => {
+    const result = await assignmentCollection.find().toArray()
     res.send(result)
 })
+
+
+// Endpoint to get assignment by ID, ensuring the IDs match
+app.get('/assignments/:id', async (req, res) => {
+    const id = req.params.id;
+    const query = { classID: id }; // Assuming classID is a string
+    const result = await assignmentCollection.find(query).toArray();
+    res.send(result);
+});
+
+
+app.post('/assignments', async (req, res) => {
+    try {
+        const assignment = req.body;
+
+        if (!assignment || typeof assignment !== 'object' || Array.isArray(assignment)) {
+            return res.status(400).send({ message: 'Invalid assignment data' });
+        }
+
+        const result = await assignmentCollection.insertOne(assignment);
+        res.send(result);
+    } catch (error) {
+        console.error('Error creating assignment:', error);
+        res.status(500).send({ message: 'Error creating assignment', error });
+    }
+});
+
+
 
 //============================================================||
 //                                                            ||
