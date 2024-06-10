@@ -6,8 +6,18 @@ const cors = require('cors');
 const port = process.env.PORT || 5000
 const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 
-app.use(cors())
+app.use(
+    cors({
+        origin: [
+            "http://localhost:5173",
+            "https://eduportal-9172b.web.app",
+            "https://eduportal-9172b.firebaseapp.com",
+        ]
+    })
+);
 app.use(express.json())
+
+
 
 
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.5bvaa0x.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0`;
@@ -256,7 +266,7 @@ app.patch('/classes/teacher/:email/:id', verifyToken, verifyTeacher, async (req,
     const teacherEmail = req.params.email;
 
     if (teacherEmail !== req.decoded.email) {
-        console.log('User log out');
+        // console.log('User log out');
         return res.status(403).send({ message: 'Forbidden Access' });
     }
 
@@ -421,7 +431,7 @@ const stripe = require("stripe")(process.env.STRIPE_KEY);
 
 app.post('/create-payment-intent', async (req, res) => {
     const { price } = req.body
-    console.log(typeof (price));
+    // console.log(typeof (price));
     if (price === undefined) {
         return res.status(400).json({ error: 'Price value is missing' });
     }
