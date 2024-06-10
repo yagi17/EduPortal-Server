@@ -411,12 +411,12 @@ app.post('/enrollments', verifyToken, async (req, res) => {
     res.send(result)
 })
 
-app.get('/enrollments', async (req, res) => {
+app.get('/enrollments', verifyToken, async (req, res) => {
     const result = await enrollCollection.find().toArray()
     res.send(result)
 })
 
-app.get('/enrollments/:email', async (req, res) => {
+app.get('/enrollments/:email', verifyToken, async (req, res) => {
     // const email = req.params.email
     const query = { email: req.params.email }
     const result = await enrollCollection.find(query).toArray()
@@ -429,7 +429,7 @@ const stripe = require("stripe")(process.env.STRIPE_KEY);
 
 //---------- Payment intent ----------//
 
-app.post('/create-payment-intent', async (req, res) => {
+app.post('/create-payment-intent', verifyToken, async (req, res) => {
     const { price } = req.body
     // console.log(typeof (price));
     if (price === undefined) {
@@ -456,7 +456,7 @@ app.post('/create-payment-intent', async (req, res) => {
     }
 })
 
-app.get('/enrolled/classes/:id', async (req, res) => {
+app.get('/enrolled/classes/:id', verifyToken, async (req, res) => {
     const id = req.params.id
     const query = { _id: new ObjectId(id) }
     const result = await classCollection.findOne(query)
@@ -464,7 +464,7 @@ app.get('/enrolled/classes/:id', async (req, res) => {
 })
 
 // Enrollment
-app.patch('/enrolled/classes/:id', async (req, res) => {
+app.patch('/enrolled/classes/:id', verifyToken, async (req, res) => {
     try {
         const id = req.params.id;
         const { enrolledStudent } = req.body;
@@ -491,21 +491,21 @@ app.patch('/enrolled/classes/:id', async (req, res) => {
 //============================================================||
 
 
-app.get('/assignments', async (req, res) => {
+app.get('/assignments', verifyToken, async (req, res) => {
     const result = await assignmentCollection.find().toArray()
     res.send(result)
 })
 
 
 // Get Assignments with class id fort that class
-app.get('/class/assignments/:id', async (req, res) => {
+app.get('/class/assignments/:id', verifyToken, async (req, res) => {
     const id = req.params.id;
     const query = { classID: id }; // Assuming classID is a string
     const result = await assignmentCollection.find(query).toArray();
     res.send(result);
 });
 
-app.get('/assignments/:id', async (req, res) => {
+app.get('/assignments/:id', verifyToken, async (req, res) => {
     const id = req.params.id;
     const query = { _id: new ObjectId(id) }; // Assuming classID is a string
     const result = await assignmentCollection.findOne(query)
@@ -514,7 +514,7 @@ app.get('/assignments/:id', async (req, res) => {
 
 
 
-app.patch('/assignments/:id', async (req, res) => {
+app.patch('/assignments/:id', verifyToken, async (req, res) => {
     const id = req.params.id;
     const { assignmentSubmission } = req.body
     const query = { _id: new ObjectId(id) };
@@ -528,7 +528,7 @@ app.patch('/assignments/:id', async (req, res) => {
 });
 
 
-app.post('/assignments', async (req, res) => {
+app.post('/assignments', verifyToken, verifyTeacher, async (req, res) => {
     try {
         const assignment = req.body;
 
