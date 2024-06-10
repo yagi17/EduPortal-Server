@@ -457,7 +457,7 @@ app.get('/enrolled/classes/:id', async (req, res) => {
 app.patch('/enrolled/classes/:id', async (req, res) => {
     try {
         const id = req.params.id;
-        const { enrolledStudent } = req.body; // Retrieve updated count from the request body
+        const { enrolledStudent } = req.body;
         const query = { _id: new ObjectId(id) };
         const updatedDoc = {
             $set: {
@@ -472,6 +472,8 @@ app.patch('/enrolled/classes/:id', async (req, res) => {
     }
 });
 
+
+
 //============================================================||
 //                                                            ||
 //                   Assignment Collection                    ||
@@ -485,11 +487,33 @@ app.get('/assignments', async (req, res) => {
 })
 
 
-// Endpoint to get assignment by ID, ensuring the IDs match
-app.get('/assignments/:id', async (req, res) => {
+// Get Assignments with class id fort that class
+app.get('/class/assignments/:id', async (req, res) => {
     const id = req.params.id;
     const query = { classID: id }; // Assuming classID is a string
     const result = await assignmentCollection.find(query).toArray();
+    res.send(result);
+});
+
+app.get('/assignments/:id', async (req, res) => {
+    const id = req.params.id;
+    const query = { _id: new ObjectId(id) }; // Assuming classID is a string
+    const result = await assignmentCollection.findOne(query)
+    res.send(result);
+});
+
+
+
+app.patch('/assignments/:id', async (req, res) => {
+    const id = req.params.id;
+    const { assignmentSubmission } = req.body
+    const query = { _id: new ObjectId(id) };
+    const updatedDoc = {
+        $set: {
+            assignmentSubmission: assignmentSubmission
+        }
+    }
+    const result = await assignmentCollection.updateOne(query, updatedDoc);
     res.send(result);
 });
 
